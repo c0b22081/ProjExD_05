@@ -91,6 +91,7 @@ class Player(pg.sprite.Sprite):
         self.reloading = 0
         self.origtop = self.rect.top
         self.facing = -1
+        self.hit_bombs = 0
 
     def move(self, direction):
         if direction:
@@ -106,6 +107,11 @@ class Player(pg.sprite.Sprite):
     def gunpos(self):
         pos = self.facing * self.gun_offset + self.rect.centerx
         return pos, self.rect.top
+    
+    def hit_by_bomb(self):
+        self.hit_bombs += 1
+        if self.hit_bombs >= 3:
+            self.kill
 
 
 class Alien(pg.sprite.Sprite):
@@ -381,7 +387,7 @@ def main(winstyle=0):
                 boom_sound.play()
             Explosion(player)
             Explosion(bomb)
-            player.kill()
+            player.hit_by_bomb()
 
         # draw the scene
         dirty = all.draw(screen)
