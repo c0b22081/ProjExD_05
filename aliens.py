@@ -91,7 +91,7 @@ class Player(pg.sprite.Sprite):
         self.reloading = 0
         self.origtop = self.rect.top
         self.facing = -1
-        self.hit_bombs = 0
+        self.space_pressed = False  # space キーが押されているかどうかを追跡self.space_pressed
 
     def move(self, direction):
         if direction:
@@ -108,10 +108,46 @@ class Player(pg.sprite.Sprite):
         pos = self.facing * self.gun_offset + self.rect.centerx
         return pos, self.rect.top
     
-    def hit_by_bomb(self):
-        self.hit_bombs += 1
-        if self.hit_bombs >= 3:
-            self.kill
+    def handle_input(self):
+        keystate = pg.key.get_pressed()
+        direction = keystate[pg.K_RIGHT] - keystate[pg.K_LEFT]
+        self.move(direction)
+
+        # space キーの状態を追跡
+        if keystate[pg.K_SPACE] and len(shots) < MAX_SHOTS:
+            if not self.space_pressed:  # space キーが以前は押されていない場合
+                self.space_pressed = True
+                self.shoot_big_shot()  # 大きな弾を発射
+        else:
+            self.space_pressed = False
+
+        if not player.reloading:
+            # 弾を通常のサイズで発射
+            if keystate[pg.K_SPACE] and len(shots) < MAX_SHOTS:
+                Shot(self.gunpos())
+                if pg.mixer:
+                    shoot_sound.play()
+                self.reloading = True
+            if not keystate[pg.K_SPACE]:
+                self.reloading = False
+
+
+class BigShot(pg.sprite.Sprite):
+    """大きな弾を表すクラス。"""
+
+    speed = -8  # 大きな弾の速度
+    images = []
+
+    def __init__(self, pos):
+        pg.sprite.Sprite.__init__(self, self.containers)
+        self.image = self.images[0]
+        self.rect = self.image.get_rect(midbottom=pos)
+
+    def update(self):
+        """大きな弾のアップデート。毎フレーム呼び出されます。"""
+        self.rect.move_ip(0, self.speed)
+        if self.rect.top <= 0:
+            self.kill()
 
 
 class Alien(pg.sprite.Sprite):
@@ -277,7 +313,7 @@ def main(winstyle=0):
     boom_sound = load_sound("boom.wav")
     shoot_sound = load_sound("car_door.wav")
     if pg.mixer:
-        music = os.path.join(main_dir, "data", "house_lo.wav")
+        music = os.path.join(main_dir, "data", "8-bit_Aggressive1.mp3")
         pg.mixer.music.load(music)
         pg.mixer.music.play(-1)
 
@@ -387,7 +423,7 @@ def main(winstyle=0):
                 boom_sound.play()
             Explosion(player)
             Explosion(bomb)
-            player.hit_by_bomb()
+            player.kill()
 
         # draw the scene
         dirty = all.draw(screen)
