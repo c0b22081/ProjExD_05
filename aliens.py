@@ -65,6 +65,9 @@ class Player(pg.sprite.Sprite):
         self.invincibility_end_tick = 0
         self.invincible = False  # 追加された行
         self.invincibility_end_tick = 0  # 追加された行
+        self.origtop = self.rect.top
+        self.facing = -1
+        self.space_pressed = False  # space キーが押されているかどうかを追跡self.space_pressed
 
     def move(self, direction):
         if direction: 
@@ -85,6 +88,49 @@ class Player(pg.sprite.Sprite):
     def gunpos(self):
         pos = self.facing < 0 and self.rect.topright or self.rect.topleft
         return pos[0] + self.gun_offset+66 , pos[1] - 1
+        pos = self.facing * self.gun_offset + self.rect.centerx
+        return pos, self.rect.top
+    
+    def handle_input(self):
+        keystate = pg.key.get_pressed()
+        direction = keystate[pg.K_RIGHT] - keystate[pg.K_LEFT]
+        self.move(direction)
+
+        # space キーの状態を追跡
+        if keystate[pg.K_SPACE] and len(shots) < MAX_SHOTS:
+            if not self.space_pressed:  # space キーが以前は押されていない場合
+                self.space_pressed = True
+                self.shoot_big_shot()  # 大きな弾を発射
+        else:
+            self.space_pressed = False
+
+        if not player.reloading:
+            # 弾を通常のサイズで発射
+            if keystate[pg.K_SPACE] and len(shots) < MAX_SHOTS:
+                Shot(self.gunpos())
+                if pg.mixer:
+                    shoot_sound.play()
+                self.reloading = True
+            if not keystate[pg.K_SPACE]:
+                self.reloading = False
+
+
+class BigShot(pg.sprite.Sprite):
+    """大きな弾を表すクラス。"""
+
+    speed = -8  # 大きな弾の速度
+    images = []
+
+    def __init__(self, pos):
+        pg.sprite.Sprite.__init__(self, self.containers)
+        self.image = self.images[0]
+        self.rect = self.image.get_rect(midbottom=pos)
+
+    def update(self):
+        """大きな弾のアップデート。毎フレーム呼び出されます。"""
+        self.rect.move_ip(0, self.speed)
+        if self.rect.top <= 0:
+            self.kill()
 
     def update(self):
         self.reloading = max(0, self.reloading-1)
@@ -113,8 +159,8 @@ class Alien(pg.sprite.Sprite):
             self.rect.top = self.rect.bottom + 1
             self.rect = self.rect.clamp(SCREENRECT)
         self.frame = self.frame + 1
-
         self.image = self.images[self.frame//self.animcycle%3]
+
 
 
 class Explosion(pg.sprite.Sprite):
@@ -129,6 +175,14 @@ class Explosion(pg.sprite.Sprite):
         self.life = self.defaultlife
 
     def update(self):
+        """called every time around the game loop.
+
+        Show the explosion surface for 'defaultlife'.
+        Every game tick(update), we decrease the 'life'.
+
+        
+        Also we animate the explosion.
+        """
         self.life = self.life - 1
         self.image = self.images[self.life//self.animcycle%2]
         if self.life <= 0:
@@ -136,8 +190,13 @@ class Explosion(pg.sprite.Sprite):
 
 
 
+
 class Shot(pg.sprite.Sprite):
     speed = -9 
+
+class Shot(pg.sprite.Sprite):
+    """a bullet the Player sprite fires."""
+    speed = -11
     images = []
 
     def __init__(self, pos):
@@ -146,6 +205,9 @@ class Shot(pg.sprite.Sprite):
         self.rect = self.image.get_rect(midbottom=pos)
 
     def update(self):
+        """called every time around the game loop.
+        Every tick we move the shot upwards.
+        """
         self.rect.move_ip(0, self.speed)
         if self.rect.top <= 0 or self.rect.bottom >= SCREENRECT.height:
             self.kill()
@@ -217,6 +279,15 @@ def main(winstyle=0):
     pg.display.flip()
 
     # Initialize game groups
+    # load the sound effects
+    boom_sound = load_sound("boom.wav")
+    shoot_sound = load_sound("car_door.wav")
+    if pg.mixer:
+        music = os.path.join(main_dir, "data", "8-bit_Aggressive1.mp3")
+        pg.mixer.music.load(music)
+        pg.mixer.music.play(-1)
+
+    # Initialize Game Groups
     aliens = pg.sprite.Group()
     shots = pg.sprite.Group()
     bombs = pg.sprite.Group()
