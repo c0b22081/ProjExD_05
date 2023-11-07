@@ -176,6 +176,7 @@ class Alien(pg.sprite.Sprite):
         self.image = self.images[self.frame // self.animcycle % 3]
 
 
+
 class Explosion(pg.sprite.Sprite):
     """An explosion. Hopefully the Alien and not the player!"""
 
@@ -206,7 +207,6 @@ class Explosion(pg.sprite.Sprite):
 
 class Shot(pg.sprite.Sprite):
     """a bullet the Player sprite fires."""
-
     speed = -11
     images = []
 
