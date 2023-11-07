@@ -195,6 +195,7 @@ class Explosion(pg.sprite.Sprite):
         Show the explosion surface for 'defaultlife'.
         Every game tick(update), we decrease the 'life'.
 
+        
         Also we animate the explosion.
         """
         self.life = self.life - 1
