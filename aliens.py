@@ -1,27 +1,4 @@
-#!/usr/bin/env python
-""" pygame.examples.aliens
 
-Shows a mini game where you have to defend against aliens.
-
-What does it show you about pygame?
-
-* pg.sprite, the difference between Sprite and Group.
-* dirty rectangle optimization for processing for speed.
-* music with pg.mixer.music, including fadeout
-* sound effects with pg.Sound
-* event processing, keyboard handling, QUIT handling.
-* a main loop frame limited with a game clock from pg.time.Clock
-* fullscreen switching.
-
-
-Controls
---------
-
-* Left and right arrows to move.
-* Space bar to shoot
-* f key to toggle between fullscreen.
-
-"""
 
 import random
 import os
@@ -49,6 +26,12 @@ main_dir = os.path.split(os.path.abspath(__file__))[0]
 def load_image(file):
     """Loads an image and prepares it for rendering."""
     file_path = os.path.join(main_dir, "data", file)
+    """
+    画像を読み込んでゲーム用に準備するメソッド。
+    ファイルのパスを受け取り、Surfaceオブジェクトを返す。
+    """
+    file = os.path.join(main_dir, "data", file)
+
     try:
         surface = pg.image.load(file_path)
     except pg.error:
@@ -56,7 +39,6 @@ def load_image(file):
     return surface.convert()
 
 def load_sound(file):
-    """Load sound effects. If pygame mixer is not available, return None."""
     if not pg.mixer:
         return None
     file_path = os.path.join(main_dir, "data", file)
@@ -131,7 +113,9 @@ class Alien(pg.sprite.Sprite):
             self.rect.top = self.rect.bottom + 1
             self.rect = self.rect.clamp(SCREENRECT)
         self.frame = self.frame + 1
+
         self.image = self.images[self.frame//self.animcycle%3]
+
 
 class Explosion(pg.sprite.Sprite):
     defaultlife = 12
@@ -199,14 +183,18 @@ class Score(pg.sprite.Sprite):
 def main(winstyle=0):
     # Initialize pygame
     pg.init()
+    # pygameの初期化
+    if pg.get_sdl_version()[0] == 2:
+        pg.mixer.pre_init(44100, 32, 2, 1024)
+
+    pg.init()
+
 
     # Set the display mode
     winstyle = 0
     bestdepth = pg.display.mode_ok(SCREENRECT.size, winstyle, 32)
     screen = pg.display.set_mode(SCREENRECT.size, winstyle, bestdepth)
-
-    # Load images, assign to sprite classes
-    img = load_image('player1.gif')
+    img = load_image("player1.gif")
     Player.images = [img, pg.transform.flip(img, 1, 0)]
     img = load_image('explosion1.gif')
     Explosion.images = [img, pg.transform.flip(img, 1, 1)]
@@ -220,8 +208,8 @@ def main(winstyle=0):
     pg.display.set_caption('Pygame Aliens')
     pg.mouse.set_visible(0)
 
-    # Create the background
-    bgdtile = load_image('background.gif')
+
+    bgdtile = load_image("background.gif")
     background = pg.Surface(SCREENRECT.size)
     for x in range(0, SCREENRECT.width, bgdtile.get_width()):
         background.blit(bgdtile, (x, 0))
@@ -235,7 +223,6 @@ def main(winstyle=0):
     all = pg.sprite.RenderUpdates()
     lastalien = pg.sprite.GroupSingle()
 
-    # Assign default groups to each sprite class
     Player.containers = all
     Alien.containers = aliens, all, lastalien
     Shot.containers = shots, all
@@ -243,16 +230,44 @@ def main(winstyle=0):
     Explosion.containers = all
     Score.containers = all
 
-    # Create some starting values
+
     global SCORE
+
     alienreload = ALIEN_RELOAD
     kills = 0
     clock = pg.time.Clock()
 
-    # Unhide the mouse
     pg.mouse.set_visible(1)
 
     # Instantiate our player
+    player = Player()
+    Alien()  # Note: this 'wakes' the alien group
+    if pg.font:
+        all.add(Score())
+
+    while player.alive():
+
+        # Get input
+        for event in pg.event.get():
+            if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+                return
+            elif event.type == pg.KEYDOWN and event.key == pg.K_f:
+                if not screen.get_flags() & pg.FULLSCREEN:
+                    pg.display.set_mode(SCREENRECT.size, pg.FULLSCREEN)
+                else:
+                    pg.display.set_mode(SCREENRECT.size)
+
+        keystate = pg.key.get_pressed()
+
+        # Clear/erase the last drawn sprites
+        all.clear(screen, background)
+
+        # Update all the sprites
+        all.update()
+
+        # Handle player input
+
+    global SCORE
     player = Player()
     Alien()  # Note: this 'wakes' the alien group
     if pg.font:
@@ -300,7 +315,6 @@ def main(winstyle=0):
         if lastalien and not int(random.random() * BOMB_ODDS):
             Bomb(lastalien.sprite)
 
-        # Detect collisions
         if not player.invincible:  # Add this condition
             for alien in pg.sprite.spritecollide(player, aliens, 1):
                 Bomb(alien)
@@ -311,6 +325,13 @@ def main(winstyle=0):
 
         for alien in pg.sprite.groupcollide(shots, aliens, 1, 1).keys():
             Bomb(alien)
+            Explosion(alien)
+            SCORE = SCORE + 1
+
+        for alien in pg.sprite.spritecollide(player, aliens, 1):
+            if pg.mixer:
+                boom_sound.play()
+
             Explosion(alien)
             SCORE = SCORE + 1
 
@@ -328,8 +349,22 @@ def main(winstyle=0):
         # Draw the scene
         dirty = all.draw(screen)
         pg.display.update(dirty)
-  
-        # Cap the frame rate
+
+
+        if not player.invincible:  # Add this condition
+            for bomb in pg.sprite.spritecollide(player, bombs, 1):
+                Explosion(player)
+                Explosion(bomb)
+                player.kill()
+
+        for alien in pg.sprite.groupcollide(shots, aliens, 1, 1).keys():
+            Bomb(alien)
+            Explosion(alien)
+            SCORE = SCORE + 1
+
+        # Draw the scene
+        dirty = all.draw(screen)
+        pg.display.update(dirty)
         clock.tick(40)
 
     if pg.mixer:
