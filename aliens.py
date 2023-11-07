@@ -1,37 +1,31 @@
 
 
-#!/usr/bin/env python
-""" pygame.examples.aliens
-
-Shows a mini game where you have to defend against aliens.
-
-
-
-
-Controls
---------
-
-* Left and right arrows to move.
-* Space bar to shoot
-* f key to toggle between fullscreen.
-
-"""
-
 import random
 import os
+
 import pygame as pg
 
-# ゲーム定数
-MAX_SHOTS = 2  # 同時に発射できる弾の最大数
-ALIEN_ODDS = 22  # 新しいエイリアンが現れる確率
-BOMB_ODDS = 60  # 新しい爆弾が落ちる確率
-ALIEN_RELOAD = 12  # 新しいエイリアンが生成されるまでのフレーム数
-SCREENRECT = pg.Rect(0, 0, 640, 480)  # ゲーム画面の矩形
-SCORE = 0  # スコア
+# see if we can load more than standard BMP
+if not pg.image.get_extended():
+    raise SystemExit("Sorry, extended image module required")
+
+# game constants
+MAX_SHOTS = 2  # most player bullets onscreen
+ALIEN_ODDS = 22  # chances a new alien appears
+BOMB_ODDS = 60  # chances a new bomb will drop
+ALIEN_RELOAD = 12  # frames between new aliens
+SHOT_RELOAD = 12
+SCREENRECT = pg.Rect(0, 0, 640, 480)
+SCORE = 0
+INVINCIBILITY_DURATION = 10000  # 10 seconds
+INVINCIBLE = False
+INVINCIBILITY_END_TICK = 0
 
 main_dir = os.path.split(os.path.abspath(__file__))[0]
 
 def load_image(file):
+    """Loads an image and prepares it for rendering."""
+    file_path = os.path.join(main_dir, "data", file)
     """
     画像を読み込んでゲーム用に準備するメソッド。
     ファイルのパスを受け取り、Surfaceオブジェクトを返す。
@@ -56,7 +50,6 @@ def load_sound(file):
     return None
 
 class Player(pg.sprite.Sprite):
-
     speed = 10
     bounce = 24
     gun_offset = -11
@@ -64,12 +57,14 @@ class Player(pg.sprite.Sprite):
     facing = 1  # Add this line. Default facing direction is right (1).
 
     def __init__(self):
-        pg.sprite.Sprite.__init__(self, self.containers)  
+        pg.sprite.Sprite.__init__(self, self.containers)
         self.image = self.images[0]
         self.rect = self.image.get_rect(midbottom=SCREENRECT.midbottom)
         self.reloading = 0
         self.invincible = False
         self.invincibility_end_tick = 0
+        self.invincible = False  # 追加された行
+        self.invincibility_end_tick = 0  # 追加された行
 
     def move(self, direction):
         if direction: 
@@ -91,7 +86,6 @@ class Player(pg.sprite.Sprite):
         pos = self.facing < 0 and self.rect.topright or self.rect.topleft
         return pos[0] + self.gun_offset+66 , pos[1] - 1
 
-
     def update(self):
         self.reloading = max(0, self.reloading-1)
 
@@ -100,8 +94,6 @@ class Player(pg.sprite.Sprite):
     
 
 class Alien(pg.sprite.Sprite):
-
-
     speed = 13
     animcycle = 12
     images = []
@@ -124,8 +116,8 @@ class Alien(pg.sprite.Sprite):
 
         self.image = self.images[self.frame//self.animcycle%3]
 
-class Explosion(pg.sprite.Sprite):
 
+class Explosion(pg.sprite.Sprite):
     defaultlife = 12
     animcycle = 3
     images = []
@@ -146,7 +138,6 @@ class Explosion(pg.sprite.Sprite):
 
 class Shot(pg.sprite.Sprite):
     speed = -9 
-
     images = []
 
     def __init__(self, pos):
@@ -160,7 +151,6 @@ class Shot(pg.sprite.Sprite):
             self.kill()
 
 class Bomb(pg.sprite.Sprite):
-
     speed = 9
     images = []
 
@@ -175,7 +165,6 @@ class Bomb(pg.sprite.Sprite):
             self.kill()
 
 class Score(pg.sprite.Sprite):
-
     def __init__(self):
         pg.sprite.Sprite.__init__(self)
         self.font = pg.font.Font(None, 20)
@@ -192,7 +181,8 @@ class Score(pg.sprite.Sprite):
             self.image = self.font.render(msg, 0, self.color)
 
 def main(winstyle=0):
-
+    # Initialize pygame
+    pg.init()
     # pygameの初期化
     if pg.get_sdl_version()[0] == 2:
         pg.mixer.pre_init(44100, 32, 2, 1024)
@@ -200,14 +190,11 @@ def main(winstyle=0):
     pg.init()
 
 
-    fullscreen = False
-    # ディスプレイモードの設定
+    # Set the display mode
     winstyle = 0
     bestdepth = pg.display.mode_ok(SCREENRECT.size, winstyle, 32)
     screen = pg.display.set_mode(SCREENRECT.size, winstyle, bestdepth)
-
     img = load_image("player1.gif")
-
     Player.images = [img, pg.transform.flip(img, 1, 0)]
     img = load_image('explosion1.gif')
     Explosion.images = [img, pg.transform.flip(img, 1, 1)]
@@ -215,7 +202,7 @@ def main(winstyle=0):
     Bomb.images = [load_image('bomb.gif')]
     Shot.images = [load_image('shot.gif')]
 
-
+    # Decorate the game window
     icon = pg.transform.scale(Alien.images[0], (32, 32))
     pg.display.set_icon(icon)
     pg.display.set_caption('Pygame Aliens')
@@ -229,19 +216,12 @@ def main(winstyle=0):
     screen.blit(background, (0, 0))
     pg.display.flip()
 
-    boom_sound = load_sound("boom.wav")
-    shoot_sound = load_sound("car_door.wav")
-    if pg.mixer:
-        music = os.path.join(main_dir, "data", "house_lo.wav")
-        pg.mixer.music.load(music)
-        pg.mixer.music.play(-1)
-
+    # Initialize game groups
     aliens = pg.sprite.Group()
     shots = pg.sprite.Group()
     bombs = pg.sprite.Group()
     all = pg.sprite.RenderUpdates()
     lastalien = pg.sprite.GroupSingle()
-
 
     Player.containers = all
     Alien.containers = aliens, all, lastalien
@@ -289,39 +269,31 @@ def main(winstyle=0):
 
     global SCORE
     player = Player()
-    Alien()
+    Alien()  # Note: this 'wakes' the alien group
     if pg.font:
         all.add(Score())
 
-    running = True
-    reset_requested = False
+    while player.alive():
 
-    while player.alive() and running:
+        # Get input
         for event in pg.event.get():
-            if event.type == pg.QUIT:
-                running = False
-            if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                running = False
-            elif event.type == pg.KEYDOWN:
-                if event.key == pg.K_f:
-                    if not fullscreen:
-                        print("Changing to FULLSCREEN")
-                        screen_backup = screen.copy()
-                        screen = pg.display.set_mode(
-                            SCREENRECT.size, winstyle | pg.FULLSCREEN, bestdepth
-                        )
-                        screen.blit(screen_backup, (0, 0))
-                #C0A22131
-                elif event.key == pg.K_q:
-                    running = False
-                elif event.key == pg.K_r:
-                    reset_requested = True
+            if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+                return
+            elif event.type == pg.KEYDOWN and event.key == pg.K_f:
+                if not screen.get_flags() & pg.FULLSCREEN:
+                    pg.display.set_mode(SCREENRECT.size, pg.FULLSCREEN)
+                else:
+                    pg.display.set_mode(SCREENRECT.size)
 
         keystate = pg.key.get_pressed()
 
+        # Clear/erase the last drawn sprites
         all.clear(screen, background)
+
+        # Update all the sprites
         all.update()
 
+        # Handle player input
         direction = keystate[pg.K_RIGHT] - keystate[pg.K_LEFT]
         player.move(direction)
         firing = keystate[pg.K_SPACE]
@@ -332,12 +304,14 @@ def main(winstyle=0):
         if keystate[pg.K_m]:  # 無敵モードを有効にするキーとして "m" を使用
             player.activate_invincibility(INVINCIBILITY_DURATION)
 
+    # Create new alien
         if alienreload:
             alienreload = alienreload - 1
         elif not int(random.random() * ALIEN_ODDS):
             Alien()
             alienreload = ALIEN_RELOAD
 
+    # Drop bombs
         if lastalien and not int(random.random() * BOMB_ODDS):
             Bomb(lastalien.sprite)
 
@@ -351,6 +325,8 @@ def main(winstyle=0):
 
         for alien in pg.sprite.groupcollide(shots, aliens, 1, 1).keys():
             Bomb(alien)
+            Explosion(alien)
+            SCORE = SCORE + 1
 
         for alien in pg.sprite.spritecollide(player, aliens, 1):
             if pg.mixer:
@@ -375,31 +351,21 @@ def main(winstyle=0):
         pg.display.update(dirty)
 
 
-        for alien in pg.sprite.groupcollide(aliens, shots, 1, 1).keys():
-            if pg.mixer:
-                boom_sound.play()
+        if not player.invincible:  # Add this condition
+            for bomb in pg.sprite.spritecollide(player, bombs, 1):
+                Explosion(player)
+                Explosion(bomb)
+                player.kill()
+
+        for alien in pg.sprite.groupcollide(shots, aliens, 1, 1).keys():
+            Bomb(alien)
             Explosion(alien)
             SCORE = SCORE + 1
 
-        for bomb in pg.sprite.spritecollide(player, bombs, 1):
-            if pg.mixer:
-                boom_sound.play()
-            Explosion(player)
-            Explosion(bomb)
-            player.kill()
-
+        # Draw the scene
         dirty = all.draw(screen)
         pg.display.update(dirty)
-
-
         clock.tick(40)
-
-        #C0A22131
-        if reset_requested:
-            all.empty()
-            SCORE = 0
-            player = Player()
-            reset_requested = False
 
     if pg.mixer:
         pg.mixer.music.fadeout(1000)
