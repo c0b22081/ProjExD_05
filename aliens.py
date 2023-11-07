@@ -1,7 +1,31 @@
+#!/usr/bin/env python
+""" pygame.examples.aliens
+
+Shows a mini game where you have to defend against aliens.
+
+What does it show you about pygame?
+
+* pg.sprite, the difference between Sprite and Group.
+* dirty rectangle optimization for processing for speed.
+* music with pg.mixer.music, including fadeout
+* sound effects with pg.Sound
+* event processing, keyboard handling, QUIT handling.
+* a main loop frame limited with a game clock from pg.time.Clock
+* fullscreen switching.
+
+
+Controls
+--------
+
+* Left and right arrows to move.
+* Space bar to shoot
+* f key to toggle between fullscreen.
+
+"""
+
 import random
 import os
 
-# import basic pygame modules
 import pygame as pg
 
 # see if we can load more than standard BMP
@@ -57,6 +81,8 @@ class Player(pg.sprite.Sprite):
         self.reloading = 0
         self.invincible = False
         self.invincibility_end_tick = 0
+        self.invincible = False  # 追加された行
+        self.invincibility_end_tick = 0  # 追加された行
 
     def move(self, direction):
         if direction: 
@@ -263,14 +289,14 @@ def main(winstyle=0):
         if keystate[pg.K_m]:  # 無敵モードを有効にするキーとして "m" を使用
             player.activate_invincibility(INVINCIBILITY_DURATION)
 
-        # Create new alien
+    # Create new alien
         if alienreload:
             alienreload = alienreload - 1
         elif not int(random.random() * ALIEN_ODDS):
             Alien()
             alienreload = ALIEN_RELOAD
 
-        # Drop bombs
+    # Drop bombs
         if lastalien and not int(random.random() * BOMB_ODDS):
             Bomb(lastalien.sprite)
 
@@ -311,8 +337,6 @@ def main(winstyle=0):
     pg.time.wait(1000)
     pg.quit()
 
-
-# call the "main" function if running this script
 if __name__ == "__main__":
     main()
     pg.quit()
